@@ -8,6 +8,7 @@ import { exportJWK, generateKeyPair, SignJWT } from 'jose';
 import { NextRequest } from 'next/server';
 import { POST as receive } from '../app/hooks/route';
 import { POST as action } from '../app/actions/route';
+import { discoverCatalog } from '../lib/connect';
 import { db } from '../lib/db';
 import { connectConfig } from '../lib/config';
 import { proxy } from '../proxy';
@@ -61,6 +62,8 @@ let remote = {
 };
 let lostCreateResponse = false;
 const createKeys: string[] = [];
+let providerToken: string | null = 'local-provider-token';
+let acceptedProviderToken = 'local-provider-token';
 
 before(async () => {
   nock.disableNetConnect();
@@ -88,6 +91,8 @@ before(async () => {
     if (url.hostname === 'fixture.invalid') {
       if (request.method === 'DELETE') return new Response(null, { status: 200 });
       if (request.method === 'GET') return new Response(null, { status: 405 });
+      if (request.headers.get('authorization') !== `Bearer ${acceptedProviderToken}`)
+        return Response.json({ error: 'invalid_token' }, { status: 401 });
       if (body.method === 'notifications/initialized') return new Response(null, { status: 202 });
       const result =
         body.method === 'initialize'
@@ -115,12 +120,15 @@ before(async () => {
       );
     }
     if (url.hostname === 'api.vercel.com') {
-      if (url.pathname.includes('/token/'))
+      if (url.pathname.includes('/token/')) {
+        if (providerToken === null)
+          return Response.json({ error: { code: 'user_authorization_required' } }, { status: 401 });
         return Response.json({
-          token: 'local-provider-token',
+          token: providerToken,
           expiresAt: Date.now() + 3600000,
           connector: { id: 'conn_test', uid: 'oauth/fixture-test', type: 'oauth' },
         });
+      }
       if (url.pathname.endsWith('/subscriptions')) {
         assert.equal(body.ttlMs, null);
         assert.deepEqual(body.tokenParams.subject, remote.subject);
@@ -365,4 +373,19 @@ test('operator pages preserve same-origin form provenance and reject cross-origi
     }),
   );
   assert.equal(response.status, 403);
+});
+
+test('discovery denies revoked authority and uses fresh consent despite a warm token cache', async () => {
+  try {
+    assert.deepEqual((await discoverCatalog()).map((event) => event.name), ['crm.deal.created']);
+    // Revoke the old grant while its cached token still has an hour to live.
+    providerToken = null;
+    acceptedProviderToken = 'fresh-consent-token';
+    await assert.rejects(discoverCatalog());
+    // OAuth completed in Connect, potentially on another app instance.
+    providerToken = 'fresh-consent-token';
+    assert.deepEqual((await discoverCatalog()).map((event) => event.name), ['crm.deal.created']);
+  } finally {
+    providerToken = acceptedProviderToken = 'local-provider-token';
+  }
 });

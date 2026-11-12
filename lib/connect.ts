@@ -1,5 +1,6 @@
 import { isDeepStrictEqual } from 'node:util';
 import { createMCPClient } from '@ai-sdk/mcp';
+import { deleteTokenCacheEntry } from '@vercel/connect';
 import { connectAuthProvider, experimental_connectEventsAdapter } from '@vercel/connect/ai-sdk';
 import {
   experimental_getSubscription as getSubscription,
@@ -10,6 +11,9 @@ import { db } from './db';
 
 export async function client() {
   const { connector, tokenParams, mcpUrl } = connectConfig();
+  // Consent may finish on another instance. Resolve current authority once per
+  // client, then let the SDK reuse that token for this client's requests.
+  deleteTokenCacheEntry(connector, tokenParams);
   return createMCPClient({
     transport: {
       type: 'http',

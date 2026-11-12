@@ -137,6 +137,11 @@ See [Vercel's event guide](https://vercel.com/docs/connect/mcp-events) and
 - **Check / retry** reads the remote status with `expectedSubject` supplied.
   `pending` is not active delivery. `needs_auth` requires authorization again.
   `failed` and `expired` require investigation, not silent re-creation.
+- Each new MCP client clears only this operator's matching Connect token-cache
+  entry before fetching credentials. Fresh consent can finish on another
+  instance, so clearing the cache only on the OAuth callback is insufficient.
+  This costs one credential lookup per client, not per MCP request. Revoked
+  authority still fails closed; the app does not restore old watches.
 - **Stop watch** commits a stop request before calling unsubscribe. The stop
   request survives a process exit. Repeat **Check / retry** until the status
   is `stopped` and cleanup is `complete`. `pending` cleanup is not completion;
@@ -204,8 +209,10 @@ seven events and seven receipts, including redacted creation data.
 Connect's scheduler renewed a watch and delivered after its original deadline.
 This used a shortened preview lease and an expired verification-cache timestamp,
 not a 24-hour soak. The normal provider lease policy was restored. Signing-key
-generation remained one, so rollover is not proven. Authorization-loss recovery
-and `needs_auth` also remain unverified.
+generation remained one, so rollover is not proven. Vercel's published event
+guide does not document a supported forced-rollover trigger. Do not edit stored
+keys to manufacture that proof. Authorization-loss recovery and `needs_auth`
+also remain unverified.
 
 All three created watches report stopped with cleanup complete. A new Lead
 creation and deletion produced two source occurrences but no deliveries;
