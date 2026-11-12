@@ -5,9 +5,12 @@ MCP client, and shared Postgres. It discovers Fixture's authorized catalog,
 creates managed watches, and displays saved events. It does not call an LLM
 or perform CRM writes.
 
-**Reference implementation. No hosted acceptance has run.** Use a Fixture
-preview with fake data. A Vercel deployment target has not been approved yet.
-Local SDK tests do not prove hosted challenge, delivery, or renewal.
+**Reference implementation with partial hosted acceptance.** The approved
+[Production inbox](https://fixture-events-vercel.vercel.app/) received fake-data
+events from a Fixture preview on November 12, 2026. That preview includes an
+unreleased `maxAgeMs` compatibility fix in
+[Fixture PR #5163](https://github.com/fixture-inc/web/pull/5163).
+See the executed cases and remaining limits below.
 
 This project uses the [MIT license](LICENSE).
 
@@ -183,7 +186,38 @@ failed commits, committed reads from a new connection, deletion ordering,
 lost create responses, unsubscribe cleanup retries, and cross-origin rejection.
 The GitHub workflow uses disposable Postgres and requires no Fixture credentials.
 
-### Hosted acceptance still required
+### Hosted acceptance results — November 12, 2026
+
+The actual Connect relay and this Production app passed fresh consent,
+11-event catalog discovery, upstream verification challenge, and signed event
+storage before acknowledgement. A deliberately rejected database transaction
+returned `503` without saving a receipt or event. Connect returned retryable
+`502` to Fixture; its fourth attempt succeeded after the fault was removed.
+
+Exact-body and concurrent resends kept one logical event. A sender process
+exited after the receiver committed but before recording acknowledgement;
+the restarted worker retried successfully without another local result.
+Creation then deletion, and deletion before delayed creation, both left
+tombstones and scrubbed stored content. Independent database reads confirmed
+seven events and seven receipts, including redacted creation data.
+
+Connect's scheduler renewed a watch and delivered after its original deadline.
+This used a shortened preview lease and an expired verification-cache timestamp,
+not a 24-hour soak. The normal provider lease policy was restored. Signing-key
+generation remained one, so rollover is not proven. Authorization-loss recovery
+and `needs_auth` also remain unverified.
+
+All three created watches report stopped with cleanup complete. A new Lead
+creation and deletion produced two source occurrences but no deliveries;
+the hosted inbox stayed at seven events. Four earlier failed creation intents
+remain visible as `creating`, not active watches. They were not silently deleted.
+
+The shared Fixture compatibility fix is published for review, not released.
+This run does not establish compatibility with released Fixture. No beta or production
+Fixture data was used. The fake-data upstream is temporary, not a service
+other deployments should depend on.
+
+### Repeat hosted acceptance
 
 With approved fake data and a stable Vercel deployment:
 
