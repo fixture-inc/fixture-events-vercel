@@ -61,12 +61,9 @@ export default async function Page({
           <h2>Configure your connection</h2>
           <p>
             Set the Connect connector, Fixture endpoint, subject, and trusted Vercel identity.
-            Follow the README before authorizing a connection. This page has not contacted Fixture.
+            Follow the README before authorizing a connection.
           </p>
         </section>
-      )}
-      {events.some((event) => event.data.synthetic === true) && (
-        <p className="notice">Synthetic sample events are shown. This page does not prove live delivery.</p>
       )}
       {query.error && (
         <p role="alert" className="notice error">
@@ -210,8 +207,7 @@ export default async function Page({
             </div>
           ))}
           <p className="footnote">
-            Single-operator demo. Use synthetic data. Events grant no additional read or write
-            access.
+            Single-operator demo. Events grant no additional read or write access.
           </p>
         </aside>
       </div>
