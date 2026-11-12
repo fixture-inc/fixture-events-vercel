@@ -99,11 +99,13 @@ creation/transitions/deletion, mentions, Meeting content readiness, and
 `notification.created`. Form submissions are Organization-webhook-only and do
 not appear here. Mentions need both `crm:read` and `tasks:read`; Meeting content
 needs `crm:read`. Both accept only `{"scope":"mine"}`. Notifications also use
-`mine`. Approve **All supported types** before using `{"scope":"mine","all":true}`,
-or choose a nonempty `keys` array from discovery for a fixed selection.
-Do not combine `all` and `keys`. Meeting follow-up Notifications also need
-`tasks:read`. The example's default scopes cover these read requirements, but
-you must still approve event consent.
+`mine`. Fresh OAuth event consent authorizes all supported types within your
+requested read scopes. Choose `{"scope":"mine","all":true}` or a nonempty `keys`
+array when subscribing, not on the OAuth consent page. If discovery omits `all`,
+obtain fresh event consent before creating an all-types watch. Do not combine
+`all` and `keys`. Meeting follow-up Notifications also need `tasks:read`.
+The example's default scopes cover these read requirements, but you must still
+approve event consent.
 
 Use the SDK calls shown in `lib/connect.ts` rather than inventing a new
 dispatcher, bypassing callback restrictions, or storing webhook keys yourself.
