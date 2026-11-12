@@ -59,7 +59,7 @@ These steps require permission to create shared resources and authorize exports.
 Before configuring Connect, make sure that webhook and MCP event delivery is
 enabled for your Organization.
 Ask an Organization Owner to allow personal event exports in **Settings →
-Webhooks → Personal watches**, using **Allow personal event exports**.
+Organization → Webhooks → Personal watches**, using **Allow personal event exports**.
 OAuth scopes alone do not enable event subscriptions.
 
 1. Create a Vercel Connect OAuth connector for Fixture. Configure the approved
@@ -88,6 +88,24 @@ OAuth scopes alone do not enable event subscriptions.
    and create a watch. Lead watches need `{"scope":"organization"}`. Task and
    Deal watches default to `{"scope":"mine"}`. New event families can require
    new domain scopes and explicit consent. The catalog reflects that authority.
+
+For the Fixture connector, use `https://api.fixture.app/api/mcp` for production
+or `https://beta-api.fixture.app/api/mcp` for beta. Choose the environment that
+contains your data. The demo's Vercel environment must still be Production or
+Custom, even when it connects to Fixture beta.
+
+The catalog includes Lead creation/deletion, Task assignment/deletion, Deal
+creation/transitions/deletion, mentions, Meeting content readiness, and
+`notification.created`. Form submissions are Organization-webhook-only and do
+not appear here. Mentions need both `crm:read` and `tasks:read`; Meeting content
+needs `crm:read`. Both accept only `{"scope":"mine"}`. Notifications also use
+`mine`. Fresh OAuth event consent authorizes all supported types within your
+requested read scopes. Choose `{"scope":"mine","all":true}` or a nonempty `keys`
+array when subscribing, not on the OAuth consent page. If discovery omits `all`,
+obtain fresh event consent before creating an all-types watch. Do not combine
+`all` and `keys`. Meeting follow-up Notifications also need `tasks:read`.
+The example's default scopes cover these read requirements, but you must still
+approve event consent.
 
 Use the SDK calls shown in `lib/connect.ts` rather than inventing a new
 dispatcher, bypassing callback restrictions, or storing webhook keys yourself.
@@ -127,6 +145,15 @@ an app `503` reaches Fixture and triggers its retry policy. Do not acknowledge a
 failed database write or rely on an in-memory task after `2xx`. Store and
 surface gap/termination notices if a provider emits them. Fixture's current
 webhook profile does not emit those controls or provide polling/streaming.
+
+For delivery errors or missing history, open **MCP → Connected clients** in
+Fixture and select the watch. Inspect its lease, paused state, attempts, and
+gaps. After fixing the receiver, use **Replay held events** for retained backlog
+or **Redeliver** for a failed or exhausted delivery. Renewal alone does neither.
+The direct Fixture protocol also supports `maxAgeMs` on cursor-bearing renewals;
+this demo leaves that option unset. See the
+[Fixture webhook and MCP reference](https://fixture.ai/docs/api-reference/webhooks#leases-keys-and-recovery)
+for age limits, explicit recovery, and the 30-day retention window.
 
 ## Deletion and retention
 
