@@ -5,10 +5,12 @@ import { before, after, test } from 'node:test';
 import postgres from 'postgres';
 import nock from 'nock';
 import { exportJWK, generateKeyPair, SignJWT } from 'jose';
+import { NextRequest } from 'next/server';
 import { POST as receive } from '../app/hooks/route';
 import { POST as action } from '../app/actions/route';
 import { db } from '../lib/db';
 import { connectConfig } from '../lib/config';
+import { proxy } from '../proxy';
 
 // A dedicated disposable Postgres database is required; never use a deployed DB.
 const testUrl = process.env.TEST_DATABASE_URL;
@@ -350,7 +352,11 @@ test('operator lifecycle recovers lost creation with its original key and retrie
   assert.equal(stopped.cleanup_status, 'complete');
 });
 
-test('operator actions reject cross-origin requests before reaching Connect', async () => {
+test('operator pages preserve same-origin form provenance and reject cross-origin actions', async () => {
+  const page = proxy(new NextRequest('https://demo.invalid/', {
+    headers: { authorization: operatorAuth },
+  }));
+  assert.equal(page.headers.get('Referrer-Policy'), 'same-origin');
   const response = await action(
     new Request('https://demo.invalid/actions', {
       method: 'POST',
