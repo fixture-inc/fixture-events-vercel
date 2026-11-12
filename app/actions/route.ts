@@ -1,4 +1,4 @@
-import { startAuthorization } from '@vercel/connect';
+import { ConnectError, startAuthorization } from '@vercel/connect';
 import { z } from 'zod';
 import { authorized, sameOrigin } from '../../lib/auth';
 import { connectConfig, required } from '../../lib/config';
@@ -40,7 +40,15 @@ export async function POST(request: Request) {
       throw new Error('Unknown action.');
     }
     return Response.redirect(new URL(action === 'discover' ? '/?catalog=1' : '/', origin), 303);
-  } catch {
+  } catch (error) {
+    console.error('Operator action failed', {
+      category: error instanceof ConnectError ? 'connect' : 'application',
+      status: error instanceof ConnectError ? error.status : undefined,
+      code:
+        error instanceof ConnectError && /^[a-z0-9_]{1,80}$/.test(error.code ?? '')
+          ? error.code
+          : undefined,
+    });
     // Do not expose provider response details: they may contain OAuth credentials.
     return Response.redirect(new URL('/?error=action', origin), 303);
   }
